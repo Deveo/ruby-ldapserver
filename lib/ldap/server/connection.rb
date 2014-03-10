@@ -145,7 +145,7 @@ class Server
               start_op(messageId,protocolOp,controls,:do_compare)
 
             when 16 # AbandonRequest
-              abandon(protocolOp.value)
+              abandon(messageId)
 
             else
               raise LDAP::ResultError::ProtocolError, "Unrecognised protocolOp tag #{protocolOp.tag}"
