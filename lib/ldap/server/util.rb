@@ -33,7 +33,7 @@ class Server
 
     def self.split_dn(dn)
       # convert \\ to \5c, \+ to \2b etc
-      dn2 = dn.gsub(/\\([ #,+"\\<>;])/) { "\\%02x" % $1[0] }
+      dn2 = dn.gsub(/\\([ #,+"\\<>;])/) { "\\%02x" % $1[0].ord }
 
       # Now we know that \\ and \, do not exist, it's safe to split
       parts = dn2.split(/\s*[,;]\s*/)
