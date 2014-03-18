@@ -177,6 +177,16 @@ class TestLdap < Test::Unit::TestCase
             dn = entry.delete("dn").first
             res[dn] = entry
           end
+        when "search_timeout"
+          res = {}
+          conn.set_option(LDAP::LDAP_OPT_TIMELIMIT, 2)
+          conn.search("dc=localhost, dc=localdomain",
+                      LDAP::LDAP_SCOPE_SUBTREE,
+                      "(objectclass=*)") do |e|
+            entry = e.to_hash
+            dn = entry.delete("dn").first
+            res[dn] = entry
+          end
         when "quit"
           puts "OK"
           break
@@ -275,5 +285,14 @@ class TestLdap < Test::Unit::TestCase
                     [:substrings, "cn", nil, nil, "and", "er"],
              ],
       ], ["a","b"]], MockOperation.lastop)
+  end
+
+  def test_search_client_timeout
+    # Should not raise errors
+    req("search_timeout")
+    assert_equal([:search, "dc=localhost, dc=localdomain",
+      LDAP::Server::WholeSubtree,
+      LDAP::Server::NeverDerefAliases,
+      [:true], []], MockOperation.lastop)
   end
 end
