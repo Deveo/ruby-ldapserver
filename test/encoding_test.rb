@@ -177,6 +177,23 @@ class TestLdap < Test::Unit::TestCase
             dn = entry.delete("dn").first
             res[dn] = entry
           end
+        when "search_retrieve_attrs"
+          res = {}
+          conn.search("dc=localhost, dc=localdomain",
+                      LDAP::LDAP_SCOPE_SUBTREE,
+                      "(objectclass=*)",
+                      ["B"]) do |e|
+            entry = e.to_hash
+            dn = entry.delete("dn").first
+            res[dn] = entry
+          end
+          exp = {
+            "cn=foo" => {"b"=>["boing"]},
+            "cn=bar" => {"b"=>["wibble"]},
+          }
+          if res != exp
+            raise "Bad Search Result, expected\n#{exp.inspect}\ngot\n#{res.inspect}"
+          end
         when "search_timeout"
           res = {}
           conn.set_option(LDAP::LDAP_OPT_TIMELIMIT, 2)
@@ -285,6 +302,14 @@ class TestLdap < Test::Unit::TestCase
                     [:substrings, "cn", nil, nil, "and", "er"],
              ],
       ], ["a","b"]], MockOperation.lastop)
+  end
+
+  def test_retrieve_attributes_case_insensitive
+    req("search_retrieve_attrs")
+    assert_equal([:search, "dc=localhost, dc=localdomain",
+      LDAP::Server::WholeSubtree,
+      LDAP::Server::NeverDerefAliases,
+      [:true], ["B"]], MockOperation.lastop)
   end
 
   def test_search_client_timeout

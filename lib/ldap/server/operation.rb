@@ -109,13 +109,15 @@ class Server
       if @schema
         # normalize the attribute names
         @attributes = @attributes.collect { |a| @schema.find_attrtype(a).to_s }
+      else
+        @attributes = @attributes.map(&:downcase)
       end
 
       sendall = @attributes == [] || @attributes.include?("*")
       avseq = []
 
       avs.each do |attr, vals|
-        if !@attributes.include?(attr)
+        if !@attributes.include?(@schema ? attr : attr.downcase)
           next unless sendall
           if @schema
             a = @schema.find_attrtype(attr)
