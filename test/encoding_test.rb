@@ -62,13 +62,60 @@ class TestLdap < Test::Unit::TestCase
   HOST = '127.0.0.1'
   PORT = 1389
 
+  def open_child_posix
+    IO.popen("-","w+").tap do |io|
+      unless io
+        do_child Kernel, Kernel
+        exit!
+      end
+    end
+  end
+
+  class DoubleIO < IO
+    def initialize out, inio
+      @out_io = out
+      @in_io = inio
+    end
+
+    def read *a
+      @out_io.read *a
+    end
+
+    def write *a
+      @in_io.write *a
+    end
+
+    def gets
+      @out_io.gets
+    end
+
+    def close
+      @in_io.close
+      @out_io.close
+    end
+  end
+
+  def open_child_java
+    in_rd, in_wr = IO.pipe
+    out_rd, out_wr = IO.pipe
+    Thread.new do
+      do_child in_rd, out_wr
+    end
+    DoubleIO.new(out_rd, in_wr)
+  end
+
+  def open_child
+    case RUBY_PLATFORM
+    when 'java'
+      open_child_java
+    else
+      open_child_posix
+    end
+  end
+
   def setup
     @ppid = $$
-    @io = IO.popen("-","w+") # this is a fork()
-    unless @io
-      do_child
-      exit!
-    end
+    @io = open_child
 
     # back to a single process (the parent). Now we start our
     # listener thread
@@ -96,10 +143,10 @@ class TestLdap < Test::Unit::TestCase
 
   # Process commands on stdin in child
 
-  def do_child
+  def do_child in_, out
     while true
       begin
-        a = gets.chomp
+        a = in_.gets.chomp
         conn ||= LDAP::Conn.new(HOST,PORT)
         case a
         when "bind2"
@@ -129,14 +176,14 @@ class TestLdap < Test::Unit::TestCase
           begin
             case conn.compare("cn=Takaaki Tateishi, dc=localhost, dc=localdomain",
                          "cn", $1)
-            when true; puts "OK true"; next
-            when false; puts "OK false"; next
+            when true; out.puts "OK true"; next
+            when false; out.puts "OK false"; next
             end
           rescue LDAP::ResultError => e
             # For older versions of ruby-ldap
             case e.message
-            when /Compare True/i; puts "OK true"; next
-            when /Compare False/i; puts "OK false"; next
+            when /Compare True/i; out.puts "OK true"; next
+            when /Compare False/i; out.puts "OK false"; next
             end
             raise
           end
@@ -205,15 +252,15 @@ class TestLdap < Test::Unit::TestCase
             res[dn] = entry
           end
         when "quit"
-          puts "OK"
+          out.puts "OK"
           break
         else
           raise "Bad command! #{a.inspect}"
         end
-        puts "OK"
+        out.puts "OK"
       rescue Exception => e
         $stderr.puts "Child exception: #{e}\n\t#{e.backtrace.join("\n\t")}"
-        puts "ERR #{e}"
+        out.puts "ERR #{e}"
       end
     end
   end

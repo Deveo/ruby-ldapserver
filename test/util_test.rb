@@ -21,7 +21,11 @@ class TestLdapUtil < Test::Unit::TestCase
 	LDAP::Server::Operation.split_dn("CN=Before\\0DAfter,O=Test,C=GB")
     )
     res = LDAP::Server::Operation.split_dn("SN=Lu\\C4\\8Di\\C4\\87")
-    assert_equal([{"sn"=>"Lu\xc4\x8di\xc4\x87"}], res)
+    assert_equal([{ "sn" => "Lu\xc4\x8di\xc4\x87".force_encoding('ascii-8bit') }], res)
+
+    # Just for fun, let's try parsing it as UTF8
+    chars = res[0]["sn"].force_encoding('utf-8').scan(/./u)
+    assert_equal(["L", "u", "\u010d", "i", "\u0107"], chars)
   end
 
   def test_join_dn

@@ -45,9 +45,9 @@ class Server
     def debug msg
       @connection.debug msg
     end
-    
+
     # Send an exception report to the log
-    
+
     def log_exception msg
       @connection.log_exception msg
     end
@@ -84,7 +84,7 @@ class Server
         seq << OpenSSL::ASN1::Sequence(rs, 3, :IMPLICIT, :APPLICATION)
       end
       yield seq if block_given?   # opportunity to add more elements
-        
+
       send_LDAPMessage(OpenSSL::ASN1::Sequence(seq, tag, :IMPLICIT, :APPLICATION), opt)
     end
 
@@ -108,7 +108,7 @@ class Server
 
       if @schema
         # normalize the attribute names
-        @attributes = @attributes.collect { |a| @schema.find_attrtype(a).to_s }
+        @attributes = @attributes.map { |a| a == '*' ? a : @schema.find_attrtype(a).to_s }
       else
         @attributes = @attributes.map(&:downcase)
       end
@@ -126,7 +126,7 @@ class Server
         end
 
         if @typesOnly
-          vals = [] 
+          vals = []
         else
           vals = [vals] unless vals.kind_of?(Array)
           # FIXME: optionally do a value_to_s conversion here?
@@ -245,7 +245,7 @@ class Server
       scope = protocolOp.value[1].value
       deref = protocolOp.value[2].value
       client_sizelimit = protocolOp.value[3].value
-      client_timelimit = protocolOp.value[4].value
+      client_timelimit = protocolOp.value[4].value.to_i
       @typesOnly = protocolOp.value[5].value
       filter = Filter::parse(protocolOp.value[6], @schema)
       @attributes = protocolOp.value[7].value.collect {|x| x.value}
@@ -271,7 +271,7 @@ class Server
       t = server_timelimit || 10
       t = client_timelimit if client_timelimit > 0 and client_timelimit < t
 
-      Timeout::timeout(t.to_i, LDAP::ResultError::TimeLimitExceeded) do
+      Timeout::timeout(t, LDAP::ResultError::TimeLimitExceeded) do
         search(baseObject, scope, deref, filter)
       end
       send_SearchResultDone(0)
