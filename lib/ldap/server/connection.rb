@@ -31,11 +31,11 @@ class Server
     def log(msg, severity = Logger::INFO)
       @logger.add(severity, msg, @io.peeraddr[3])
     end
-    
+
     def debug msg
       log msg, Logger::DEBUG
     end
-    
+
     def log_exception(e)
       log "#{e}: #{e.backtrace.join("\n\tfrom ")}", Logger::ERROR
     end
@@ -55,6 +55,7 @@ class Server
     # Return String containing the raw element.
 
     def ber_read(io)
+      throw(:close) unless IO.select([io], nil, nil, (@opt[:timelimit] || 10) + 1)
       blk = io.read(2)		# minimum: short tag, short length
       throw(:close) if blk.nil?
 
